@@ -53,11 +53,22 @@ export const useFileUpload = (): UseFileUploadResult => {
                 file.name.toLowerCase().endsWith('.tsv')) {
         const text = await parseTextFile(file);
         setRawText(text);
-        
-        // Parse CSV data
-        const data = parseCSV(text);
+
+        // --- Improved delimiter detection ---
+        const headerLine = text.split('\n')[0];
+        const commaCount = (headerLine.match(/,/g) || []).length;
+        const tabCount   = (headerLine.match(/\t/g) || []).length;
+
+        const isTSV = file.name.toLowerCase().endsWith('.tsv');
+        const delimiter = isTSV ? '\t' : (tabCount > commaCount ? '\t' : ',');
+
+        // Normalise text to commas for the existing parseCSV logic when delimiter is tab
+        const normalizedText = delimiter === ',' ? text : text.replace(/\t/g, ',');
+
+        // Parse CSV data using existing parser
+        const data = parseCSV(normalizedText);
         setCsvData(data);
-        
+
         // Extract columns
         if (data.length > 0) {
           const headers = data[0];

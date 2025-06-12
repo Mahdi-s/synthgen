@@ -421,11 +421,21 @@ const App: React.FC<AppProps> = ({ onThemeChange }): React.ReactElement => {
       } else if (ext === 'csv' || ext === 'tsv') {
         // For CSV/TSV files, we'll store the raw content and parse columns
         textContent = await file.text()
-        const delimiter = textContent.includes('\t') ? '\t' : ','
-        
-        // Parse the first row to get column names
-        const firstRow = textContent.split('\n')[0]
-        const columnNames = firstRow.split(delimiter).map(col => col.trim().replace(/^["']|["']$/g, ''))
+        // Heuristic delimiter detection – count occurrences in the first (header) line
+        const headerLine = textContent.split('\n')[0];
+        const commaCount = (headerLine.match(/,/g) || []).length;
+        const tabCount   = (headerLine.match(/\t/g) || []).length;
+
+        // Prefer tab when the file extension is .tsv; otherwise pick the delimiter with the higher count
+        let delimiter: string;
+        if (ext === 'tsv') {
+          delimiter = '\t';
+        } else {
+          delimiter = tabCount > commaCount ? '\t' : ',';
+        }
+
+        // Parse the first row to get column names using the detected delimiter
+        const columnNames = headerLine.split(delimiter).map(col => col.trim().replace(/^["']|["']$/g, ''))
         
         // Set initial column selection state (all selected by default)
         setCsvColumns(columnNames.map(name => ({ name, selected: true })))
@@ -1082,16 +1092,28 @@ const App: React.FC<AppProps> = ({ onThemeChange }): React.ReactElement => {
           const hasHeaders = csvData.length > 0 && csvData[0].length > 0;
           
           if (hasHeaders && csvColumns.length > 0) {
-            // Start from row 1 to skip headers
-            chunks = csvData.slice(1).map((row: any) => {
-              return csvColumns
+            // Helper to convert column names to valid tag names (PascalCase, alphanumeric only)
+            const toTagName = (name: string): string => {
+              return name
+                .trim()
+                .replace(/[^A-Za-z0-9 ]/g, '')                 // keep letters, numbers, spaces
+                .split(/\s+/)                                 // split by whitespace
+                .map(word => word.charAt(0).toUpperCase() + word.slice(1))
+                .join('');                                     // join into PascalCase
+            };
+
+            // Build context strings with dynamic tags
+            chunks = csvData.slice(1).map((row: string[]) => {
+              const parts = csvColumns
                 .filter(col => col.selected)
                 .map(col => {
                   const colIndex = csvData[0].indexOf(col.name);
-                  return colIndex >= 0 ? row[colIndex] : '';
-                })
-                .join(' ');
-            }).filter((text: string) => text.trim());
+                  const value = colIndex >= 0 ? String(row[colIndex] || '').trim() : '';
+                  const tagName = toTagName(col.name);
+                  return `<${tagName}>${value}</${tagName}>`;
+                });
+              return parts.join('\n'); // separate tags with newline for readability
+            }).filter(text => text.trim());
           }
           break;
           
