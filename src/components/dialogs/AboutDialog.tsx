@@ -44,15 +44,6 @@ const AboutDialog: React.FC<AboutDialogProps> = ({ open, onClose }) => {
         <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
           A powerful tool for generating question-answer pairs from documents using local language models.
         </Typography>
-        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
-          Developed by{' '}
-          <Typography component="span" sx={{ 
-            color: theme.palette.primary.main,
-            fontWeight: 500
-          }}>
-            Neo Mohsenvand
-          </Typography>
-        </Typography>
       </DialogContent>
     </Dialog>
   );
