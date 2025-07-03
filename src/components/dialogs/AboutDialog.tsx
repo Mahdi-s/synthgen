@@ -4,7 +4,8 @@ import {
   DialogTitle,
   DialogContent,
   Typography,
-  useTheme
+  useTheme,
+  Link
 } from '@mui/material';
 import ScienceIcon from '@mui/icons-material/Science';
 
@@ -41,8 +42,11 @@ const AboutDialog: React.FC<AboutDialogProps> = ({ open, onClose }) => {
         </Typography>
       </DialogTitle>
       <DialogContent sx={{ pt: '4px !important' }}>
-        <Typography variant="body2" sx={{ mb: 2, color: 'text.secondary' }}>
+        <Typography variant="body2" sx={{ mb: 1, color: 'text.secondary' }}>
           A powerful tool for generating question-answer pairs from documents using local language models.
+        </Typography>
+        <Typography variant="body2" sx={{ color: 'text.secondary' }}>
+          Credit: <Link href="https://github.com/NeoVand/synthgen" target="_blank" rel="noopener noreferrer">Synthgen By Neo</Link>
         </Typography>
       </DialogContent>
     </Dialog>

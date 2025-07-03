@@ -13,6 +13,7 @@ import {
   Tooltip,
   MenuItem,
   FormControlLabel,
+  Slider,
 } from '@mui/material'
 import DeleteIcon from '@mui/icons-material/Delete'
 import AutoAwesomeIcon from '@mui/icons-material/AutoAwesome'
@@ -261,6 +262,10 @@ const App: React.FC<AppProps> = ({ onThemeChange }): React.ReactElement => {
 
   // Add state for CSV columns
   const [csvColumns, setCsvColumns] = useState<{name: string; selected: boolean}[]>([])
+  // Add state for CSV row control
+  const [csvRowCount, setCsvRowCount] = useState<number>(1)
+  const [csvMaxRows, setCsvMaxRows] = useState<number>(1)
+  const [csvRandomizeOrder, setCsvRandomizeOrder] = useState<boolean>(false)
   // Remove the unused state declaration
   // const [csvData, setCsvData] = useState<string[][]>([])
 
@@ -440,10 +445,14 @@ const App: React.FC<AppProps> = ({ onThemeChange }): React.ReactElement => {
         // Set initial column selection state (all selected by default)
         setCsvColumns(columnNames.map(name => ({ name, selected: true })))
         
-        // Process the data but don't store in a variable since it's not used
-        textContent.split('\n').map(row => 
-          row.split(delimiter).map(cell => cell.trim().replace(/^["']|["']$/g, ''))
-        )
+        // Calculate total number of data rows (excluding header)
+        const totalLines = textContent.split('\n').filter(line => line.trim()).length
+        const totalDataRows = Math.max(1, totalLines - 1) // Subtract 1 for header, minimum 1
+        
+        // Set CSV row control state
+        setCsvMaxRows(totalDataRows)
+        setCsvRowCount(totalDataRows) // Start with all rows selected
+        setCsvRandomizeOrder(false) // Reset randomization
         
         // Set chunking algorithm to CSV/TSV
         setChunkingAlgorithm('csv-tsv')
@@ -1102,8 +1111,25 @@ const App: React.FC<AppProps> = ({ onThemeChange }): React.ReactElement => {
                 .join('');                                     // join into PascalCase
             };
 
+            // Get data rows (excluding header)
+            let dataRows = csvData.slice(1);
+            
+            // Apply randomization if enabled
+            if (csvRandomizeOrder && dataRows.length > 1) {
+              // Fisher-Yates shuffle algorithm
+              const shuffled = [...dataRows];
+              for (let i = shuffled.length - 1; i > 0; i--) {
+                const j = Math.floor(Math.random() * (i + 1));
+                [shuffled[i], shuffled[j]] = [shuffled[j], shuffled[i]];
+              }
+              dataRows = shuffled;
+            }
+            
+            // Limit to the specified number of rows
+            const selectedRows = dataRows.slice(0, csvRowCount);
+
             // Build context strings with dynamic tags
-            chunks = csvData.slice(1).map((row: string[]) => {
+            chunks = selectedRows.map((row: string[]) => {
               const parts = csvColumns
                 .filter(col => col.selected)
                 .map(col => {
@@ -4089,6 +4115,115 @@ const App: React.FC<AppProps> = ({ onThemeChange }): React.ReactElement => {
                                     </Typography>
                                   )}
                                 </Paper>
+                                
+                                {/* Row Selection Controls */}
+                                {csvColumns.length > 0 && (
+                                  <>
+                                    {/* Number of Rows Slider */}
+                                    <Box sx={{ mt: 2 }}>
+                                      <Box sx={{ 
+                                        display: 'flex', 
+                                        alignItems: 'center',
+                                        justifyContent: 'space-between',
+                                        mb: 1 
+                                      }}>
+                                        <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                          <Typography variant="caption" sx={{ color: theme.palette.text.secondary }}>
+                                            Number of Rows
+                                          </Typography>
+                                          <Tooltip title="Select how many rows to include in the chunks. Use the slider to choose from 1 to all available rows." placement="right">
+                                            <IconButton size="small" sx={{ ml: 0.5, opacity: 0.7 }}>
+                                              <HelpOutlineIcon sx={{ fontSize: '0.875rem' }} />
+                                            </IconButton>
+                                          </Tooltip>
+                                        </Box>
+                                        <Typography variant="caption" sx={{ 
+                                          color: theme.palette.text.primary,
+                                          fontWeight: 500,
+                                          minWidth: 'fit-content' 
+                                        }}>
+                                          {csvRowCount} of {csvMaxRows}
+                                        </Typography>
+                                      </Box>
+                                      <Paper variant="outlined" sx={{ 
+                                        p: 2,
+                                        borderRadius: '8px',
+                                        bgcolor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.03)' : 'rgba(0, 0, 0, 0.02)',
+                                        border: '1px solid',
+                                        borderColor: theme.palette.mode === 'dark' ? 'rgba(255, 255, 255, 0.1)' : 'rgba(0, 0, 0, 0.1)',
+                                      }}>
+                                        <Slider
+                                          value={csvRowCount}
+                                          onChange={(_, value) => setCsvRowCount(Array.isArray(value) ? value[0] : value)}
+                                          min={1}
+                                          max={csvMaxRows}
+                                          step={1}
+                                          marks={csvMaxRows <= 10 ? Array.from({length: csvMaxRows}, (_, i) => ({ value: i + 1, label: `${i + 1}` })) : false}
+                                          valueLabelDisplay="auto"
+                                          sx={{
+                                            '& .MuiSlider-thumb': {
+                                              bgcolor: theme.palette.primary.main,
+                                            },
+                                            '& .MuiSlider-track': {
+                                              bgcolor: theme.palette.primary.main,
+                                            },
+                                            '& .MuiSlider-rail': {
+                                              bgcolor: theme.palette.mode === 'dark' 
+                                                ? 'rgba(255, 255, 255, 0.2)' 
+                                                : 'rgba(0, 0, 0, 0.2)',
+                                            },
+                                            '& .MuiSlider-mark': {
+                                              bgcolor: theme.palette.mode === 'dark' 
+                                                ? 'rgba(255, 255, 255, 0.3)' 
+                                                : 'rgba(0, 0, 0, 0.3)',
+                                            },
+                                            '& .MuiSlider-markLabel': {
+                                              fontSize: '0.75rem',
+                                              color: theme.palette.text.secondary,
+                                            },
+                                          }}
+                                        />
+                                      </Paper>
+                                    </Box>
+                                    
+                                    {/* Randomize Order Option */}
+                                    <Box sx={{ mt: 2 }}>
+                                      <FormControlLabel
+                                        control={
+                                          <Checkbox
+                                            checked={csvRandomizeOrder}
+                                            onChange={(e) => setCsvRandomizeOrder(e.target.checked)}
+                                            size="small"
+                                            sx={{
+                                              color: theme.palette.mode === 'dark' 
+                                                ? alpha(theme.palette.common.white, 0.3)
+                                                : alpha(theme.palette.common.black, 0.2),
+                                              '&.Mui-checked': {
+                                                color: theme.palette.primary.main,
+                                              },
+                                            }}
+                                          />
+                                        }
+                                        label={
+                                          <Box sx={{ display: 'flex', alignItems: 'center' }}>
+                                            <Typography variant="body2" sx={{ 
+                                              fontSize: '0.875rem',
+                                              color: theme.palette.text.primary,
+                                            }}>
+                                              Randomize row order
+                                            </Typography>
+                                            <Tooltip title="When enabled, the selected rows will be shuffled randomly before processing. This can help create more diverse training data." placement="right">
+                                              <IconButton size="small" sx={{ ml: 0.5, opacity: 0.7 }}>
+                                                <HelpOutlineIcon sx={{ fontSize: '0.875rem' }} />
+                                              </IconButton>
+                                            </Tooltip>
+                                          </Box>
+                                        }
+                                        sx={{ ml: 0 }}
+                                      />
+                                    </Box>
+                                  </>
+                                )}
                               </Box>
                             )}
                             
